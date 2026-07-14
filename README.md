@@ -23,7 +23,7 @@ The adversarial test cases in the eval set exist specifically to prove this.
 ## Quick start
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/VijayaY836/Customer-Support-Resolution-Agent
 cd support-agent
 python3 -m venv .venv && source .venv/bin/activate   # optional but recommended
 pip install -r requirements.txt
