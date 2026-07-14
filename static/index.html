@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dispatch — Support Resolution Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F7F2;
+    --panel:#FFFFFF;
+    --ink:#1E2A44;
+    --ink-soft:#5C6B85;
+    --line:#DDD9CC;
+    --amber:#C97E1E;
+    --amber-bg:#FBEBD3;
+    --violet:#5A50C9;
+    --violet-bg:#E9E6FB;
+    --coral:#C43D34;
+    --coral-bg:#FBE2DF;
+    --teal:#1F7A67;
+    --teal-bg:#DEF2ED;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.mono-label{font-family:'Space Grotesk',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  a{color:inherit;}
+
+  header{
+    padding:22px 28px 16px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  header .title{display:flex; align-items:baseline; gap:12px;}
+  header h1{font-size:20px; margin:0; letter-spacing:0.2px;}
+  header .eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1.5px;
+    color:var(--ink-soft); text-transform:uppercase;
+  }
+  #backend-pill{
+    font-family:'JetBrains Mono',monospace; font-size:11px; padding:4px 10px;
+    border-radius:999px; border:1px solid var(--line); color:var(--ink-soft);
+  }
+
+  .kpi-strip{
+    display:grid; grid-template-columns:repeat(5, 1fr); gap:1px;
+    background:var(--line); border-bottom:1px solid var(--line);
+  }
+  .kpi-cell{background:var(--panel); padding:14px 20px;}
+  .kpi-cell .num{font-family:'Space Grotesk',sans-serif; font-size:26px; font-weight:700;}
+  .kpi-cell .label{font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.8px; margin-top:2px;}
+
+  main{
+    display:grid;
+    grid-template-columns:320px 1fr 320px;
+    gap:0;
+    min-height:calc(100vh - 130px);
+  }
+  section{padding:20px; border-right:1px solid var(--line);}
+  main > section:last-child{border-right:none;}
+
+  .panel-title{font-size:13px; text-transform:uppercase; letter-spacing:1px; color:var(--ink-soft); margin:0 0 14px;}
+
+  textarea{
+    width:100%; min-height:100px; resize:vertical;
+    border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px; font-family:'Inter',sans-serif; font-size:14px;
+    background:var(--panel); color:var(--ink);
+  }
+  textarea:focus, button:focus-visible, input:focus-visible{
+    outline:2px solid var(--violet); outline-offset:1px;
+  }
+  button{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:13px;
+    border-radius:8px; border:1px solid var(--ink); background:var(--ink); color:#fff;
+    padding:9px 14px; cursor:pointer;
+  }
+  button:hover{opacity:0.88;}
+  button.secondary{background:transparent; color:var(--ink); border:1px solid var(--line);}
+  button.approve{background:var(--teal); border-color:var(--teal);}
+  button.deny{background:var(--coral); border-color:var(--coral);}
+  button:disabled{opacity:0.5; cursor:not-allowed;}
+
+  .row{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .demo-list{margin-top:18px; display:flex; flex-direction:column; gap:8px;}
+  .demo-item{
+    font-size:13px; padding:9px 10px; border:1px solid var(--line); border-radius:8px;
+    background:var(--panel); cursor:pointer;
+  }
+  .demo-item:hover{border-color:var(--ink-soft);}
+
+  #feed{display:flex; flex-direction:column; gap:14px;}
+  .empty-note{color:var(--ink-soft); font-size:13px; margin-top:6px;}
+
+  .ticket-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 16px; animation:rise .35s ease both;
+  }
+  @keyframes rise{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  .ticket-head{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .ticket-text{font-size:14px; line-height:1.4;}
+  .route-tag{
+    font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600;
+    padding:3px 9px; border-radius:999px; white-space:nowrap; text-transform:uppercase; letter-spacing:0.5px;
+  }
+  .route-auto_resolve{background:var(--teal-bg); color:var(--teal);}
+  .route-draft_for_review{background:var(--violet-bg); color:var(--violet);}
+  .route-escalate{background:var(--coral-bg); color:var(--coral);}
+  .route-pending{background:var(--amber-bg); color:var(--amber);}
+
+  .reasoning{font-size:12px; color:var(--ink-soft); margin-top:6px;}
+
+  .steps{margin-top:10px; display:flex; flex-direction:column; gap:6px;}
+  .step{
+    font-family:'JetBrains Mono',monospace; font-size:12px; padding:7px 9px;
+    border-radius:7px; background:#F1F0EA; color:var(--ink);
+    opacity:0; animation:stepIn .3s ease forwards;
+  }
+  @keyframes stepIn{from{opacity:0; transform:translateX(-4px);} to{opacity:1; transform:translateX(0);}}
+
+  .gate-bar{
+    margin-top:10px; border-radius:8px; padding:10px 12px;
+    background:repeating-linear-gradient(135deg, var(--amber-bg), var(--amber-bg) 10px, #FDF3E4 10px, #FDF3E4 20px);
+    border:1px solid var(--amber);
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+  .gate-bar.resolved{
+    background:var(--teal-bg); border-color:var(--teal);
+  }
+  .gate-bar.denied{
+    background:var(--coral-bg); border-color:var(--coral);
+  }
+  .gate-label{font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:600; letter-spacing:0.3px;}
+  .gate-bar .gate-label{color:var(--amber);}
+  .gate-bar.resolved .gate-label{color:var(--teal);}
+  .gate-bar.denied .gate-label{color:var(--coral);}
+
+  .final-output{
+    margin-top:10px; font-size:13.5px; line-height:1.5;
+    padding-top:10px; border-top:1px dashed var(--line);
+  }
+
+  .approval-card{
+    background:var(--panel); border:1px solid var(--amber); border-radius:var(--radius);
+    padding:12px 14px; margin-bottom:10px;
+  }
+  .approval-card .row{margin-top:8px;}
+  .approval-meta{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--ink-soft); line-height:1.6;}
+
+  footer{padding:14px 28px; font-size:11.5px; color:var(--ink-soft); border-top:1px solid var(--line);}
+
+  @media (max-width: 980px){
+    main{grid-template-columns:1fr;}
+    section{border-right:none; border-bottom:1px solid var(--line);}
+    .kpi-strip{grid-template-columns:repeat(2, 1fr);}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">
+    <h1>Dispatch</h1>
+    <span class="eyebrow">Customer Support Resolution Agent</span>
+  </div>
+  <span id="backend-pill" class="mono">backend: loading…</span>
+</header>
+
+<div class="kpi-strip">
+  <div class="kpi-cell"><div class="num" id="kpi-total">0</div><div class="label">Tickets run</div></div>
+  <div class="kpi-cell"><div class="num" id="kpi-auto">0%</div><div class="label">Auto-resolved (KPI)</div></div>
+  <div class="kpi-cell"><div class="num" id="kpi-draft">0</div><div class="label">Draft for review</div></div>
+  <div class="kpi-cell"><div class="num" id="kpi-escalate">0</div><div class="label">Escalated</div></div>
+  <div class="kpi-cell"><div class="num" id="kpi-pending">0</div><div class="label">Pending approvals</div></div>
+</div>
+
+<main>
+  <section id="intake">
+    <p class="panel-title">Ticket intake</p>
+    <textarea id="ticket-input" placeholder="Paste or type an incoming support ticket…"></textarea>
+    <div class="row">
+      <button id="submit-btn">Run ticket</button>
+      <button id="demo-btn" class="secondary">Run 3 seeded demo tickets</button>
+    </div>
+    <p class="panel-title" style="margin-top:22px;">Seeded demo tickets</p>
+    <div class="demo-list" id="demo-list"></div>
+  </section>
+
+  <section id="trace">
+    <p class="panel-title">Live trace feed</p>
+    <div id="feed"></div>
+    <p class="empty-note" id="empty-note">Run a ticket to see the classify → route → tool-call → response pipeline narrated here.</p>
+  </section>
+
+  <section id="approvals">
+    <p class="panel-title">Human approval gate</p>
+    <div id="approval-list"></div>
+    <p class="empty-note" id="approval-empty">No refund requests waiting on a human right now.</p>
+  </section>
+</main>
+
+<footer>Every <span class="mono">issue_refund</span> call is intercepted in code and held here until a human approves or denies it — this holds regardless of what any model decides.</footer>
+
+<script>
+const feedEl = document.getElementById('feed');
+const emptyNote = document.getElementById('empty-note');
+const approvalList = document.getElementById('approval-list');
+const approvalEmpty = document.getElementById('approval-empty');
+
+function routeLabel(route){
+  return {auto_resolve:'Auto-resolved', draft_for_review:'Draft for review', escalate:'Escalated'}[route] || route;
+}
+
+function stepLine(step){
+  if(step.type === 'tool_call'){
+    return `→ ${step.tool}(${JSON.stringify(step.arguments)})  ⇒  ${JSON.stringify(step.result).slice(0,140)}`;
+  }
+  if(step.type === 'approval_requested'){
+    return `⛔ issue_refund(${JSON.stringify(step.arguments)}) — BLOCKED, filed as ${step.approval_id}`;
+  }
+  return '';
+}
+
+async function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+async function renderTrace(trace){
+  emptyNote.style.display = 'none';
+  const card = document.createElement('div');
+  card.className = 'ticket-card';
+  card.innerHTML = `
+    <div class="ticket-head">
+      <div class="ticket-text">${escapeHtml(trace.ticket_text)}</div>
+      <span class="route-tag route-pending">classifying…</span>
+    </div>
+    <div class="reasoning"></div>
+    <div class="steps"></div>
+  `;
+  feedEl.prepend(card);
+  await sleep(250);
+
+  const tag = card.querySelector('.route-tag');
+  tag.className = `route-tag route-${trace.route}`;
+  tag.textContent = routeLabel(trace.route);
+  card.querySelector('.reasoning').textContent = `${(trace.route_confidence*100).toFixed(0)}% confidence — ${trace.route_reasoning}`;
+
+  const stepsEl = card.querySelector('.steps');
+  let gateStep = null;
+  for(const step of trace.steps){
+    if(step.type === 'classification') continue;
+    await sleep(220);
+    const line = document.createElement('div');
+    line.className = 'step';
+    line.textContent = stepLine(step);
+    stepsEl.appendChild(line);
+    if(step.type === 'approval_requested') gateStep = step;
+  }
+
+  if(gateStep){
+    await sleep(150);
+    const gate = document.createElement('div');
+    gate.className = 'gate-bar';
+    gate.dataset.approvalId = gateStep.approval_id;
+    gate.innerHTML = `<span class="gate-label">⛔ REFUND BLOCKED — pending human approval (${gateStep.approval_id})</span>`;
+    card.appendChild(gate);
+  }
+
+  await sleep(200);
+  const out = document.createElement('div');
+  out.className = 'final-output';
+  out.textContent = trace.final_output;
+  card.appendChild(out);
+
+  await refreshApprovals();
+  await refreshKpi();
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div'); d.innerText = s; return d.innerHTML;
+}
+
+async function runTicket(text, ticketId){
+  const body = {ticket_text: text};
+  if(ticketId) body.ticket_id = ticketId;
+  const resp = await fetch('/api/tickets/run', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  if(!resp.ok){
+    const err = await resp.json().catch(()=>({detail: resp.statusText}));
+    alert('Run failed: ' + (err.detail || resp.statusText));
+    return;
+  }
+  const trace = await resp.json();
+  await renderTrace(trace);
+}
+
+async function refreshApprovals(){
+  const resp = await fetch('/api/approvals');
+  const all = await resp.json();
+  const pending = all.filter(a => a.status === 'pending');
+
+  // update any resolved gate bars already in the feed
+  for(const a of all){
+    const bar = document.querySelector(`.gate-bar[data-approval-id="${a.approval_id}"]`);
+    if(bar && a.status !== 'pending'){
+      bar.classList.add(a.status === 'approved' ? 'resolved' : 'denied');
+      bar.innerHTML = `<span class="gate-label">${a.status === 'approved' ? '✓ REFUND APPROVED & PROCESSED' : '✕ REFUND DENIED'} — ${a.approval_id}</span>`;
+    }
+  }
+
+  approvalList.innerHTML = '';
+  approvalEmpty.style.display = pending.length ? 'none' : 'block';
+  for(const a of pending){
+    const card = document.createElement('div');
+    card.className = 'approval-card';
+    card.innerHTML = `
+      <div class="approval-meta">
+        ticket: ${a.ticket_id}<br/>
+        order: #${a.order_id} &middot; amount: ₹${a.amount}<br/>
+        reason: ${escapeHtml(a.reason)}
+      </div>
+      <div class="row">
+        <button class="approve" data-id="${a.approval_id}">Approve</button>
+        <button class="deny" data-id="${a.approval_id}">Deny</button>
+      </div>
+    `;
+    approvalList.appendChild(card);
+  }
+  approvalList.querySelectorAll('.approve').forEach(b => b.onclick = () => resolveApproval(b.dataset.id, 'approve'));
+  approvalList.querySelectorAll('.deny').forEach(b => b.onclick = () => resolveApproval(b.dataset.id, 'deny'));
+
+  document.getElementById('kpi-pending').textContent = pending.length;
+}
+
+async function resolveApproval(id, action){
+  await fetch(`/api/approvals/${id}/${action}`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({note:''})
+  });
+  await refreshApprovals();
+  await refreshKpi();
+}
+
+async function refreshKpi(){
+  const resp = await fetch('/api/kpi');
+  const k = await resp.json();
+  document.getElementById('kpi-total').textContent = k.total_tickets;
+  document.getElementById('kpi-auto').textContent = k.pct_auto_resolved + '%';
+  document.getElementById('kpi-draft').textContent = k.by_route.draft_for_review;
+  document.getElementById('kpi-escalate').textContent = k.by_route.escalate;
+  document.getElementById('backend-pill').textContent = `backend: ${k.model}`;
+}
+
+async function loadDemoTickets(){
+  const resp = await fetch('/api/demo-tickets');
+  const demos = await resp.json();
+  const list = document.getElementById('demo-list');
+  list.innerHTML = '';
+  demos.forEach(d => {
+    const div = document.createElement('div');
+    div.className = 'demo-item';
+    div.textContent = d.ticket_text;
+    div.onclick = () => runTicket(d.ticket_text, d.ticket_id + '-' + Date.now().toString(36));
+    list.appendChild(div);
+  });
+  return demos;
+}
+
+document.getElementById('submit-btn').onclick = () => {
+  const input = document.getElementById('ticket-input');
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = '';
+  runTicket(text);
+};
+
+document.getElementById('demo-btn').onclick = async () => {
+  const demos = await fetch('/api/demo-tickets').then(r => r.json());
+  for(const d of demos){
+    await runTicket(d.ticket_text, d.ticket_id + '-' + Date.now().toString(36));
+    await sleep(300);
+  }
+};
+
+loadDemoTickets();
+refreshApprovals();
+refreshKpi();
+</script>
+</body>
+</html>

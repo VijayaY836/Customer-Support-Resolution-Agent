@@ -1,0 +1,108 @@
+{
+  "4471": {
+    "order_id": "4471",
+    "customer_name": "Priya Menon",
+    "customer_email": "priya.menon@example.com",
+    "items": [
+      {
+        "sku": "WBH-102",
+        "name": "Wireless Headphones",
+        "qty": 1,
+        "price": 2499.0
+      }
+    ],
+    "amount_paid": 2499.0,
+    "status": "shipped",
+    "carrier": "BlueDart",
+    "tracking_number": "BD98213741IN",
+    "eta": "2026-07-16",
+    "placed_on": "2026-07-10",
+    "days_since_delivery": null,
+    "refund_eligible": true
+  },
+  "4488": {
+    "order_id": "4488",
+    "customer_name": "Arjun Rao",
+    "customer_email": "arjun.rao@example.com",
+    "items": [
+      {
+        "sku": "SB-220",
+        "name": "Bluetooth Speaker",
+        "qty": 1,
+        "price": 1899.0
+      }
+    ],
+    "amount_paid": 1899.0,
+    "status": "delivered",
+    "carrier": "Delhivery",
+    "tracking_number": "DL77120984IN",
+    "eta": "2026-07-08",
+    "placed_on": "2026-07-02",
+    "days_since_delivery": 6,
+    "refund_eligible": true
+  },
+  "4502": {
+    "order_id": "4502",
+    "customer_name": "Sara Fernandes",
+    "customer_email": "sara.f@example.com",
+    "items": [
+      {
+        "sku": "YM-14",
+        "name": "Yoga Mat",
+        "qty": 2,
+        "price": 799.0
+      }
+    ],
+    "amount_paid": 1598.0,
+    "status": "delivered",
+    "carrier": "Delhivery",
+    "tracking_number": "DL77120001IN",
+    "eta": "2026-06-01",
+    "placed_on": "2026-05-25",
+    "days_since_delivery": 44,
+    "refund_eligible": false
+  },
+  "4519": {
+    "order_id": "4519",
+    "customer_name": "Kabir Singh",
+    "customer_email": "kabir.singh@example.com",
+    "items": [
+      {
+        "sku": "PW-77",
+        "name": "Power Bank 20000mAh",
+        "qty": 1,
+        "price": 1299.0
+      }
+    ],
+    "amount_paid": 1299.0,
+    "status": "delivered",
+    "carrier": "BlueDart",
+    "tracking_number": "BD98213988IN",
+    "eta": "2026-07-05",
+    "placed_on": "2026-06-29",
+    "days_since_delivery": 9,
+    "refund_eligible": true,
+    "note": "Customer reported item arrived damaged; photo evidence on file."
+  },
+  "4530": {
+    "order_id": "4530",
+    "customer_name": "Neha Joshi",
+    "customer_email": "neha.joshi@example.com",
+    "items": [
+      {
+        "sku": "DK-09",
+        "name": "Standing Desk Converter",
+        "qty": 1,
+        "price": 6499.0
+      }
+    ],
+    "amount_paid": 6499.0,
+    "status": "processing",
+    "carrier": null,
+    "tracking_number": null,
+    "eta": "2026-07-20",
+    "placed_on": "2026-07-13",
+    "days_since_delivery": null,
+    "refund_eligible": true
+  }
+}
