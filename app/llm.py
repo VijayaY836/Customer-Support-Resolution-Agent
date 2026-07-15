@@ -188,7 +188,7 @@ class MockLLMClient:
         return {"content": None, "tool_calls": [{"id": f"mock-{name}", "name": name, "arguments": args}]}
 
     def _draft_reply(self, text, tool_msgs) -> str:
-        kb_snippets, order_info = [], None
+        kb_snippets, order_info, refund_filed = [], None, False
         for m in tool_msgs:
             try:
                 payload = json.loads(m["content"])
@@ -198,6 +198,8 @@ class MockLLMClient:
                 kb_snippets = [r["content"] for r in payload.get("results", [])]
             if m.get("name") == "get_order_status" and payload.get("found"):
                 order_info = payload
+            if m.get("name") == "issue_refund":
+                refund_filed = True
 
         lines = ["Hi there, thanks for reaching out."]
         if order_info:
@@ -207,8 +209,10 @@ class MockLLMClient:
             )
         if kb_snippets:
             lines.append(kb_snippets[0])
-        if any(w in text for w in self.REFUND_WORDS):
+        if refund_filed:
             lines.append("I've logged your refund request -- it's pending review by a human agent before anything is processed.")
+        elif any(w in text for w in self.REFUND_WORDS):
+            lines.append("I haven't been able to process anything here yet -- I've flagged this for a teammate to review directly.")
         lines.append("Let us know if you need anything else.")
         return " ".join(lines)
 
