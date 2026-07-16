@@ -27,6 +27,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 class RunTicketRequest(BaseModel):
     ticket_text: str
     ticket_id: str | None = None
+    backend: str | None = None  # "mock" | "openrouter" -- overrides server default for this one run
 
 
 class ResolveApprovalRequest(BaseModel):
@@ -53,11 +54,24 @@ def get_demo_tickets():
 @app.post("/api/tickets/run")
 def run_ticket(req: RunTicketRequest):
     ticket_id = req.ticket_id or f"t-{uuid.uuid4().hex[:8]}"
+    backend = (req.backend or config.LLM_BACKEND).lower()
+    if backend not in ("mock", "openrouter"):
+        raise HTTPException(status_code=400, detail=f"Unknown backend '{backend}' -- expected 'mock' or 'openrouter'.")
+    if backend == "openrouter" and not config.OPENROUTER_API_KEY:
+        raise HTTPException(
+            status_code=400,
+            detail="OPENROUTER_API_KEY is not set on the server. Export it before starting uvicorn, then restart the server.",
+        )
+
+    prev_backend = config.LLM_BACKEND
+    config.LLM_BACKEND = backend  # scoped to this one request; restored in finally
     try:
         client = llm.get_client()
         trace = agent.run_ticket(ticket_id, req.ticket_text, trace_store, approval_queue, client)
     except llm.LLMError as e:
         raise HTTPException(status_code=502, detail=str(e))
+    finally:
+        config.LLM_BACKEND = prev_backend
     return trace
 
 

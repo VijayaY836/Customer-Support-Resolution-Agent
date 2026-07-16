@@ -16,7 +16,8 @@ sys.path.insert(0, str(ROOT))
 
 load_dotenv(ROOT / ".env")
 
-from eval.run_eval import run_eval, render_markdown
+from eval.run_eval import run_eval, render_markdown, judge_all_pairs
+from app import config
 
 st.set_page_config(page_title="Eval Dashboard", layout="wide", initial_sidebar_state="expanded")
 
@@ -32,6 +33,15 @@ with st.sidebar:
         backends = [backend]
     else:
         backends = backend_options
+
+    run_judge = False
+    if compare_mode:
+        run_judge = st.checkbox(
+            f"Also run LLM-as-judge ({config.OPENROUTER_JUDGE_MODEL})",
+            value=False,
+            help="Has a separate, stronger model blind-compare mock vs real-LLM replies per ticket. "
+                 "Costs one extra API call per ticket, on top of the openrouter run above.",
+        )
 
     run_button = st.button("▶ Run Evaluation", type="primary", use_container_width=True)
 
@@ -52,6 +62,19 @@ if run_button:
     if reports:
         st.success(f"✅ Evaluation complete! ({len(reports)} backend(s) ran)")
         st.session_state.reports = reports
+
+    st.session_state.judge_verdicts = None
+    if run_judge and len(reports) == 2:
+        with st.status(f"Running LLM-as-judge ({config.OPENROUTER_JUDGE_MODEL})...", expanded=True) as status:
+            try:
+                mock_report = next(r for r in reports if r["backend"] == "mock")
+                llm_report = next(r for r in reports if r["backend"] == "openrouter")
+                verdicts = judge_all_pairs(mock_report, llm_report)
+                st.session_state.judge_verdicts = verdicts
+                status.update(label="✅ Judge pass complete", state="complete")
+            except Exception as e:
+                st.error(f"Error running judge pass: {str(e)}")
+                status.update(label="❌ Judge pass failed", state="error")
 
 # Display results if available
 if "reports" in st.session_state and st.session_state.reports:
@@ -96,6 +119,34 @@ if "reports" in st.session_state and st.session_state.reports:
             st.metric("Trace", f"{r['layer_pass_rate']['trace']}%")
             st.metric("Tool-call", f"{r['layer_pass_rate']['tool_call']}%")
             st.metric("Output", f"{r['layer_pass_rate']['output']}%")
+
+    # LLM-as-judge results
+    if st.session_state.get("judge_verdicts"):
+        verdicts = st.session_state.judge_verdicts
+        st.header(f"⚖️ LLM-as-Judge ({config.OPENROUTER_JUDGE_MODEL})")
+        st.caption("Blinded pairwise comparison -- the judge model isn't told which reply came from mock vs the real LLM.")
+
+        wins = {"mock": 0, "real_llm": 0, "tie": 0}
+        for v in verdicts:
+            if "winner" in v:
+                wins[v["winner"]] = wins.get(v["winner"], 0) + 1
+
+        jcol1, jcol2, jcol3 = st.columns(3)
+        jcol1.metric("Real LLM preferred", wins.get("real_llm", 0))
+        jcol2.metric("Mock preferred", wins.get("mock", 0))
+        jcol3.metric("Tie", wins.get("tie", 0))
+
+        judge_data = []
+        for v in verdicts:
+            if "error" in v:
+                judge_data.append({"ID": v["id"], "Category": v["category"], "Winner": "ERROR", "Mock score": "-", "Real-LLM score": "-", "Reasoning": v["error"]})
+            else:
+                judge_data.append({
+                    "ID": v["id"], "Category": v["category"], "Winner": v["winner"],
+                    "Mock score": v["mock_score"], "Real-LLM score": v["real_llm_score"],
+                    "Reasoning": v["reasoning"],
+                })
+        st.dataframe(pd.DataFrame(judge_data), use_container_width=True, hide_index=True)
 
     # Adversarial cases
     st.header("⚠️ Adversarial / Guardrail Cases")

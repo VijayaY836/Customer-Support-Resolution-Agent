@@ -122,6 +122,12 @@
   .route-escalate{background:var(--coral-bg); color:var(--coral);}
   .route-pending{background:var(--amber-bg); color:var(--amber);}
 
+  .backend-tag{
+    font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600;
+    padding:3px 8px; border-radius:999px; white-space:nowrap;
+    background:#E9E7DF; color:var(--ink-soft); margin-right:auto;
+  }
+
   .reasoning{font-size:12px; color:var(--ink-soft); margin-top:6px;}
 
   .steps{margin-top:10px; display:flex; flex-direction:column; gap:6px;}
@@ -197,7 +203,14 @@
     <textarea id="ticket-input" placeholder="Paste or type an incoming support ticket…"></textarea>
     <div class="row">
       <button id="submit-btn">Run ticket</button>
-      <button id="demo-btn" class="secondary">Run 3 seeded demo tickets</button>
+      <select id="backend-select" title="Which backend runs this one ticket">
+        <option value="mock" selected>Mock</option>
+        <option value="openrouter">Real LLM (OpenRouter)</option>
+      </select>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <button id="demo-btn-mock" class="secondary">Run 3 seeded demo tickets — Mock</button>
+      <button id="demo-btn-llm" class="secondary">Run 3 seeded demo tickets — Real LLM</button>
     </div>
     <p class="panel-title" style="margin-top:22px;">Seeded demo tickets</p>
     <div class="demo-list" id="demo-list"></div>
@@ -247,6 +260,7 @@ async function renderTrace(trace){
   card.innerHTML = `
     <div class="ticket-head">
       <div class="ticket-text">${escapeHtml(trace.ticket_text)}</div>
+      <span class="backend-tag">${trace.llm_backend === 'openrouter' ? '🧠 real LLM' : '⚙️ mock'}</span>
       <span class="route-tag route-pending">classifying…</span>
     </div>
     <div class="reasoning"></div>
@@ -295,9 +309,10 @@ function escapeHtml(s){
   const d = document.createElement('div'); d.innerText = s; return d.innerHTML;
 }
 
-async function runTicket(text, ticketId){
+async function runTicket(text, ticketId, backend){
   const body = {ticket_text: text};
   if(ticketId) body.ticket_id = ticketId;
+  if(backend) body.backend = backend;
   const resp = await fetch('/api/tickets/run', {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
   });
@@ -375,7 +390,7 @@ async function loadDemoTickets(){
     const div = document.createElement('div');
     div.className = 'demo-item';
     div.textContent = d.ticket_text;
-    div.onclick = () => runTicket(d.ticket_text, d.ticket_id + '-' + Date.now().toString(36));
+    div.onclick = () => runTicket(d.ticket_text, d.ticket_id + '-' + Date.now().toString(36), document.getElementById('backend-select').value);
     list.appendChild(div);
   });
   return demos;
@@ -385,17 +400,20 @@ document.getElementById('submit-btn').onclick = () => {
   const input = document.getElementById('ticket-input');
   const text = input.value.trim();
   if(!text) return;
+  const backend = document.getElementById('backend-select').value;
   input.value = '';
-  runTicket(text);
+  runTicket(text, null, backend);
 };
 
-document.getElementById('demo-btn').onclick = async () => {
+async function runDemoWithBackend(backend){
   const demos = await fetch('/api/demo-tickets').then(r => r.json());
   for(const d of demos){
-    await runTicket(d.ticket_text, d.ticket_id + '-' + Date.now().toString(36));
+    await runTicket(d.ticket_text, d.ticket_id + '-' + Date.now().toString(36), backend);
     await sleep(300);
   }
-};
+}
+document.getElementById('demo-btn-mock').onclick = () => runDemoWithBackend('mock');
+document.getElementById('demo-btn-llm').onclick = () => runDemoWithBackend('openrouter');
 
 loadDemoTickets();
 refreshApprovals();

@@ -217,6 +217,84 @@ class MockLLMClient:
         return " ".join(lines)
 
 
+def judge_compare(ticket_text: str, mock_output: str, llm_output: str) -> dict:
+    """
+    LLM-as-judge: ask a separate, stronger model (config.OPENROUTER_JUDGE_MODEL,
+    default GPT-4.1) to compare the naive mock baseline's reply against the
+    real agent's reply for the same ticket, and pick a winner with reasoning.
+
+    This is purely an additional qualitative layer for the eval report -- it
+    does NOT replace or affect the existing deterministic checks (route /
+    tool-call / output) that the pass-rate scorecard is built on. Those stay
+    code-based and free to run. The judge only runs when explicitly asked for
+    (see run_eval.py --judge), since each call costs real API credits.
+    """
+    if not config.OPENROUTER_API_KEY:
+        raise LLMError("OPENROUTER_API_KEY is not set -- can't run the LLM-as-judge comparison.")
+
+    system_prompt = (
+        "You are an impartial evaluator judging two customer-support-agent replies "
+        "to the SAME support ticket. One reply came from a naive keyword-based baseline "
+        "agent, the other from a real LLM-driven agent. You are not told which is which -- "
+        "they are simply labeled Response A and Response B.\n\n"
+        "Judge on: factual accuracy against no invented details, faithfulness to sensible "
+        "support policy, appropriate tone, and whether it avoids over-promising (e.g. never "
+        "claiming a refund is complete when it should only be 'pending human approval').\n\n"
+        "Respond with ONLY a JSON object, no other text, in this exact shape:\n"
+        '{"winner": "A" | "B" | "tie", "score_a": <1-5 int>, "score_b": <1-5 int>, '
+        '"reasoning": "<one or two sentences>"}'
+    )
+    user_prompt = (
+        f"Ticket: {ticket_text}\n\n"
+        f"Response A:\n{mock_output}\n\n"
+        f"Response B:\n{llm_output}"
+    )
+
+    payload = {
+        "model": config.OPENROUTER_JUDGE_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0,
+        "max_tokens": 300,
+    }
+    headers = {
+        "Authorization": f"Bearer {config.OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": config.OPENROUTER_SITE_URL,
+        "X-Title": config.OPENROUTER_APP_NAME,
+    }
+
+    resp = requests.post(
+        f"{config.OPENROUTER_BASE_URL}/chat/completions",
+        headers=headers, json=payload, timeout=60,
+    )
+    if resp.status_code != 200:
+        raise LLMError(f"OpenRouter judge error {resp.status_code}: {resp.text[:500]}")
+
+    data = resp.json()
+    try:
+        content = data["choices"][0]["message"]["content"] or ""
+        verdict = _extract_json(content)
+    except (KeyError, IndexError, json.JSONDecodeError) as e:
+        raise LLMError(f"Unexpected judge response shape: {data}") from e
+
+    # Map the blinded A/B labels back to which system actually produced them,
+    # so the report is human-readable without revealing the labeling to the
+    # judge model itself (blinding avoids the judge favoring "the LLM one"
+    # just because it expects LLM output to be better).
+    label_map = {"A": "mock", "B": "real_llm"}
+    winner_raw = str(verdict.get("winner", "")).strip().upper()
+    return {
+        "winner": label_map.get(winner_raw, "tie"),
+        "mock_score": verdict.get("score_a"),
+        "real_llm_score": verdict.get("score_b"),
+        "reasoning": verdict.get("reasoning", ""),
+        "judge_model": config.OPENROUTER_JUDGE_MODEL,
+    }
+
+
 def get_client():
     if config.LLM_BACKEND == "openrouter":
         return OpenRouterClient()

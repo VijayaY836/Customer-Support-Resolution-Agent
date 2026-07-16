@@ -29,6 +29,13 @@ OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "anthropic/claude-sonnet-4
 OPENROUTER_SITE_URL = os.environ.get("OPENROUTER_SITE_URL", "https://github.com")
 OPENROUTER_APP_NAME = os.environ.get("OPENROUTER_APP_NAME", "support-resolution-agent")
 
+# --- LLM-as-judge (eval only) ------------------------------------------------
+# A separate, stronger model used ONLY to score/compare mock vs agent
+# responses during evaluation -- never used to run the agent itself. Kept
+# deliberately distinct from OPENROUTER_MODEL (the agent's model) so a
+# larger model can grade a smaller/cheaper one without conflating the two.
+OPENROUTER_JUDGE_MODEL = os.environ.get("OPENROUTER_JUDGE_MODEL", "openai/gpt-4.1")
+
 # --- Data paths --------------------------------------------------------------
 ORDERS_PATH = BASE_DIR / "data" / "orders.json"
 KB_PATH = BASE_DIR / "data" / "kb.json"

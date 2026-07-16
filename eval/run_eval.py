@@ -122,6 +122,36 @@ LAYER_OF = {
 }
 
 
+def judge_all_pairs(mock_report: dict, llm_report: dict) -> list:
+    """
+    Run the LLM-as-judge comparison for every ticket that appears in both
+    reports (i.e. every ticket in the test set, since both backends run the
+    same 17). Returns a list of per-ticket verdicts. Costs one extra API call
+    per ticket -- only called when --judge is explicitly passed.
+    """
+    mock_by_id = {t["id"]: t for t in mock_report["ticket_results"]}
+    llm_by_id = {t["id"]: t for t in llm_report["ticket_results"]}
+
+    verdicts = []
+    for ticket_id, mock_t in mock_by_id.items():
+        llm_t = llm_by_id.get(ticket_id)
+        if not llm_t:
+            continue
+        try:
+            verdict = llm.judge_compare(
+                mock_t["text"],
+                mock_t.get("final_output") or "",
+                llm_t.get("final_output") or "",
+            )
+            verdict["id"] = ticket_id
+            verdict["category"] = mock_t["category"]
+        except llm.LLMError as e:
+            verdict = {"id": ticket_id, "category": mock_t["category"], "error": str(e)}
+        verdicts.append(verdict)
+        print(f"  judged {ticket_id}: {verdicts[-1].get('winner', 'error')}")
+    return verdicts
+
+
 def run_eval(backend: str) -> dict:
     config.LLM_BACKEND = backend
     client = llm.get_client()
@@ -188,7 +218,7 @@ def run_eval(backend: str) -> dict:
     }
 
 
-def render_markdown(reports: list) -> str:
+def render_markdown(reports: list, judge_verdicts: list | None = None) -> str:
     lines = ["# Evaluation Report\n"]
     lines.append("## Scorecard\n")
     lines.append("| Backend | Model | KPI: % auto-resolved | Trace layer | Tool-call layer | Output layer | Overall |")
@@ -211,6 +241,31 @@ def render_markdown(reports: list) -> str:
             f"encodes the refund gate -- stays at {reports[-1]['layer_pass_rate']['tool_call']}% "
             f"pass on both backends, because the gate is enforced in code, not by the model.\n"
         )
+
+    if judge_verdicts:
+        judge_model = next((v["judge_model"] for v in judge_verdicts if "judge_model" in v), config.OPENROUTER_JUDGE_MODEL)
+        wins = {"mock": 0, "real_llm": 0, "tie": 0}
+        for v in judge_verdicts:
+            if "winner" in v:
+                wins[v["winner"]] = wins.get(v["winner"], 0) + 1
+        lines.append(f"## LLM-as-judge: {judge_model} scores mock vs. real-LLM replies\n")
+        lines.append(
+            f"Blinded pairwise comparison (the judge is not told which reply came from which "
+            f"backend) across all {len(judge_verdicts)} tickets: **real LLM preferred in "
+            f"{wins.get('real_llm', 0)}**, **mock preferred in {wins.get('mock', 0)}**, "
+            f"**tie in {wins.get('tie', 0)}**.\n"
+        )
+        lines.append("| ID | Category | Winner | Mock score | Real-LLM score | Reasoning |")
+        lines.append("|---|---|---|---|---|---|")
+        for v in judge_verdicts:
+            if "error" in v:
+                lines.append(f"| {v['id']} | {v['category']} | ERROR | - | - | {v['error']} |")
+            else:
+                lines.append(
+                    f"| {v['id']} | {v['category']} | {v['winner']} | {v['mock_score']} | "
+                    f"{v['real_llm_score']} | {v['reasoning']} |"
+                )
+        lines.append("")
 
     lines.append("## Adversarial / guardrail cases (called out explicitly)\n")
     for r in reports:
@@ -246,6 +301,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", choices=["mock", "openrouter"], default="mock")
     parser.add_argument("--compare", action="store_true", help="Run both mock and openrouter and produce a before/after report")
+    parser.add_argument(
+        "--judge", action="store_true",
+        help="Also run an LLM-as-judge pass (config.OPENROUTER_JUDGE_MODEL, default GPT-4.1) "
+             "comparing mock vs openrouter replies per ticket. Requires --compare. Costs one "
+             "extra API call per ticket.",
+    )
     args = parser.parse_args()
 
     backends = ["mock", "openrouter"] if args.compare else [args.backend]
@@ -262,12 +323,22 @@ def main():
         print("No backends ran. Set OPENROUTER_API_KEY or drop --compare to use mock only.")
         sys.exit(1)
 
+    judge_verdicts = None
+    if args.judge:
+        if len(reports) < 2:
+            print("--judge requires both backends (use --compare together with --judge). Skipping judge pass.")
+        elif not config.OPENROUTER_API_KEY:
+            print("Skipping judge pass: OPENROUTER_API_KEY is not set.")
+        else:
+            print(f"\nRunning LLM-as-judge ({config.OPENROUTER_JUDGE_MODEL}) over {len(reports[0]['ticket_results'])} tickets ...")
+            judge_verdicts = judge_all_pairs(reports[0], reports[-1])
+
     out_json = ROOT / "eval" / "eval_report.json"
     out_md = ROOT / "eval" / "eval_report.md"
     with open(out_json, "w", encoding="utf-8") as f:
-        json.dump(reports, f, indent=2)
+        json.dump({"reports": reports, "judge_verdicts": judge_verdicts}, f, indent=2)
     with open(out_md, "w", encoding="utf-8") as f:
-        f.write(render_markdown(reports))
+        f.write(render_markdown(reports, judge_verdicts))
 
     for r in reports:
         print(f"\n=== {r['backend']} ({r['model']}) ===")
