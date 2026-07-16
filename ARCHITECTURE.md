@@ -1,5 +1,16 @@
 # Architecture
 
+## Models in use
+
+The agent runs on whatever model `OPENROUTER_MODEL` points to via
+OpenRouter. **Every number in `eval/eval_report.md` was produced with
+`openai/gpt-4.1-mini`** — not Claude, despite the code's fallback default
+still being an Anthropic slug (a leftover from an earlier version; see
+README's "Which model this actually uses"). The LLM-as-judge evaluation
+layer (below) uses a separate model, `OPENROUTER_JUDGE_MODEL`, defaulting to
+`openai/gpt-4.1` — deliberately never the same model that ran the agent
+being judged.
+
 ## Pipeline
 
 ```
@@ -63,6 +74,63 @@ under any route, on any backend. `eval/run_eval.py`'s
 `refund_not_executed_without_approval` check asserts this directly by
 diffing `data/orders.json` before/after every ticket.
 
+## Per-request backend override (web demo)
+
+`app/main.py::run_ticket` accepts an optional `backend` field on each
+request, letting the web UI run any single ticket — including the seeded
+demo tickets — against `mock` or `openrouter` independently of the server's
+default `LLM_BACKEND`. It works by swapping `config.LLM_BACKEND` for the
+duration of one request, then restoring it in a `finally` block. This is
+safe for a single presenter clicking one button at a time; it is **not**
+safe under concurrent multi-user load, since two simultaneous requests could
+interleave and briefly use each other's backend. Fine for a demo, not
+production-ready as written — see "What to harden next."
+
+## LLM-as-judge (evaluation only)
+
+`llm.judge_compare()` sends a separate, typically stronger model
+(`OPENROUTER_JUDGE_MODEL`) the same ticket's mock reply and real-LLM reply,
+**blinded** as "Response A" / "Response B" — the judge is never told which
+backend produced which reply, specifically to avoid it favoring "the LLM
+one" purely because it expects LLM output to be better. It returns a
+winner, a 1–5 score for each response, and a short justification.
+
+This exists because the main eval's checks (route correctness, tool-call
+correctness, no invented facts) can only measure whether a reply is
+*technically correct* — they can't measure whether it's *well-written*. A
+reply can pass every deterministic check and still read worse than an
+alternative; the judge measures that gap. It is deliberately **additive**:
+it never affects the pass/fail scorecard, and running it (`--judge`, only
+valid combined with `--compare`) costs one extra API call per ticket on top
+of the normal openrouter run.
+
+On this project's actual eval set, the judge did not produce a clean sweep
+for the real model (9 real-LLM wins / 6 mock wins / 2 ties out of 17) —
+mock's canned replies paste the full KB policy article verbatim, which the
+judge sometimes scores as more complete even though it reads less
+naturally. Worth knowing before presenting this number: it is not a bug,
+and a judge that always favored "the LLM one" would itself be a red flag
+for judge bias, not a good sign.
+
+## Governance / fairness check
+
+`eval/fairness_tickets.json` holds 4 scenario groups (order status, refund
+request, password reset, damaged item), each repeated 3 times with only the
+customer's name changed — everything else in the ticket text is identical.
+`run_fairness_eval()` runs all 12 through the agent and checks, per group,
+whether every name produced the same route and whether confidence varied by
+more than 0.15 across names. Written to `eval/fairness_report.{json,md}`,
+kept fully separate from the main scorecard.
+
+**This is a first-pass tripwire, not a rigorous fairness audit.** 12
+tickets, one identity variable (name only), no statistical significance
+testing, and the 0.15 confidence-spread threshold is a reasonable-sounding
+number, not a validated one. It is only meaningful against a real LLM
+backend — the mock backend never reads customer names at all (pure keyword
+matching on complaint text), so it will trivially show zero divergence
+regardless of what's tested, and the report says so explicitly rather than
+letting that read as a real finding.
+
 ## Named limitation
 
 **The classifier and resolver share no memory across tickets, and the KB
@@ -75,6 +143,10 @@ search is a keyword-overlap lookup, not embeddings.** Two consequences:
    no keywords with the article (e.g. "the box was crushed" won't obviously
    match `kb-005`'s "damaged or defective" unless the LLM's own tool-call
    query bridges the gap, which it usually but not always does).
+
+**The fairness check is a first-pass tripwire, not a comprehensive audit**
+(see above) — a real deployment would need a much larger, more rigorous test
+set before treating a clean result as evidence of fairness.
 
 ## What to harden next
 
@@ -93,3 +165,11 @@ search is a keyword-overlap lookup, not embeddings.** Two consequences:
 4. **Idempotency keys on `issue_refund`** — currently nothing stops the same
    ticket from filing two approval requests for the same order if the model
    retries; worth deduplicating in `ApprovalQueue.create`.
+5. **Concurrency-safe backend override** — the per-request `LLM_BACKEND`
+   swap in `main.py` (see above) is scoped correctly for one user, but would
+   need a request-local context instead of a shared global under real
+   multi-user load.
+6. **A larger, statistically grounded fairness test set** — expand past 12
+   tickets / one identity variable (name) to cover more scenarios, more
+   identity signals, and an actual significance test rather than a fixed
+   0.15 threshold.

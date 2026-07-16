@@ -9,6 +9,23 @@ produces a structured, human-readable trace for evaluation.
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the one-page pipeline doc, and
 [`eval/eval_report.md`](eval/eval_report.md) for the evaluation scorecard.
 
+## Which model this actually uses
+
+This project runs on **OpenRouter**, which can route to any model on their
+platform. The agent itself, in every evaluation run in this repo
+(`eval/eval_report.md`), is **`openai/gpt-4.1-mini`** — not Claude. A
+separate, independent model, **`openai/gpt-4.1`**, is used only as an
+evaluation judge (see below) — never to run the agent.
+
+The code's *default* fallback (`OPENROUTER_MODEL` in `app/config.py`) is
+still set to an Anthropic slug (`anthropic/claude-sonnet-4.5`) from an
+earlier version of this project. **The actual model used for every number in
+this repo's eval report is `openai/gpt-4.1-mini`**, set via `.env` /
+environment variable, which overrides that default. If you re-run the eval
+yourself without setting `OPENROUTER_MODEL` explicitly, you'll get Claude
+instead — same architecture, different model, and the numbers will differ
+from what's documented here. See `.env.example`.
+
 ## Why it's built this way
 
 The refund gate is enforced in **code**, in one place
@@ -24,7 +41,7 @@ The adversarial test cases in the eval set exist specifically to prove this.
 
 ```bash
 git clone https://github.com/VijayaY836/Customer-Support-Resolution-Agent
-cd support-agent
+cd Customer-Support-Resolution-Agent
 python3 -m venv .venv && source .venv/bin/activate   # optional but recommended
 pip install -r requirements.txt
 ```
@@ -47,24 +64,41 @@ Approve it:
 python3 cli.py approve appr-xxxxxxxx
 ```
 
-### Option B — run against the real Claude model via OpenRouter
+### Option B — run against a real LLM via OpenRouter
 
 1. Get a key at https://openrouter.ai/keys
 2. Copy `.env.example` to `.env` and fill in:
    ```
    LLM_BACKEND=openrouter
    OPENROUTER_API_KEY=sk-or-...
-   OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
+   OPENROUTER_MODEL=openai/gpt-4.1-mini
+   OPENROUTER_JUDGE_MODEL=openai/gpt-4.1
    ```
-   (Swap the model slug for `anthropic/claude-haiku-4.5` if you want cheaper
-   eval runs, or check https://openrouter.ai/models?q=claude for the latest
-   Sonnet/Opus slugs.)
-3. Export the vars (or use `python-dotenv` / your shell's `.env` support),
-   then:
+   (`OPENROUTER_MODEL` is the agent's model; `OPENROUTER_JUDGE_MODEL` is a
+   separate, stronger model used only by the eval harness's LLM-as-judge
+   pass, never to run the agent itself. Check
+   https://openrouter.ai/models for current slugs/pricing for either.)
+3. Export the vars (`source .env` with `set -a`/`set +a` on macOS/Linux, or
+   `$env:VAR = "value"` per line on Windows PowerShell — see below), then:
    ```bash
-   export $(cat .env | xargs)
    python3 cli.py demo
    ```
+
+**Loading `.env` correctly (bash/zsh):**
+```bash
+set -a; source .env; set +a
+```
+**PowerShell:**
+```powershell
+Get-Content .env | ForEach-Object {
+    if ($_ -match '^\s*([^#][^=]*)=(.*)$') {
+        [System.Environment]::SetEnvironmentVariable($matches[1].Trim(), $matches[2].Trim(), "Process")
+    }
+}
+```
+Neither `uvicorn` nor `cli.py` read `.env` automatically — only
+`eval_dashboard.py` does, via `python-dotenv`. You must export the
+variables into your shell yourself for the CLI and web server.
 
 ## Running the web demo
 
@@ -75,10 +109,25 @@ there's no CORS setup.
 uvicorn app.main:app --reload --port 8000
 ```
 
-Open http://localhost:8000. Click **"Run 3 seeded demo tickets"** to replay
-the demo script live: order lookup → password reset → refund request that
-trips the gate. Approve or deny it from the right-hand panel and watch the
-KPI strip and the ticket's own trace card update.
+Open http://localhost:8000. There are two ways to run the seeded tickets,
+independently of each other and of the server's `LLM_BACKEND` default:
+
+- **"Run 3 seeded demo tickets — Mock"** — free, deterministic, no key
+  needed regardless of server config.
+- **"Run 3 seeded demo tickets — Real LLM"** — requires
+  `OPENROUTER_API_KEY` to be set on the server process (see Option B above).
+
+Each ticket card in the trace feed is tagged with which backend actually
+ran it (⚙️ mock / 🧠 real LLM), so it's unambiguous which one produced a
+given result on screen. The free-text ticket box has a matching dropdown to
+send any custom ticket to either backend. Approve or deny refund requests
+from the right-hand panel and watch the KPI strip and the ticket's own
+trace card update.
+
+This per-request backend choice is implemented by temporarily overriding
+`config.LLM_BACKEND` for the duration of one request only
+(`app/main.py::run_ticket`) — safe for one person clicking buttons in a demo,
+not safe for concurrent multi-user traffic (see `ARCHITECTURE.md`).
 
 ## Running the CLI
 
@@ -105,31 +154,76 @@ python3 eval/run_eval.py --backend openrouter
 
 # Both, as a before/after comparison:
 python3 eval/run_eval.py --compare
+
+# Also run an LLM-as-judge pass (blinded, GPT-4.1 by default) comparing
+# mock vs real-LLM replies per ticket. Requires --compare. Costs one extra
+# API call per ticket:
+python3 eval/run_eval.py --compare --judge
+
+# Also run the name-based governance/fairness check (12 tickets, matched
+# complaints, different customer names). Meaningful only against openrouter:
+python3 eval/run_eval.py --backend openrouter --fairness
 ```
 
-This regenerates `eval/eval_report.json` (raw) and `eval/eval_report.md`
-(the scorecard, with the three adversarial tickets called out explicitly).
+This regenerates `eval/eval_report.json` / `.md` (the main scorecard, with
+the three adversarial tickets called out explicitly) and, when the relevant
+flags are used, `eval/fairness_report.json` / `.md` (the governance check,
+written separately so it never overwrites the main scorecard).
+
 The eval run never calls `approve()`, so it never mutates `data/orders.json`
 — any ticket where an order ends up `refunded` after an eval run indicates a
 gate failure, and the harness asserts against exactly that.
+
+### Evaluation dashboard (Streamlit)
+
+A visual frontend over the same `run_eval.py` harness — no separate scoring
+logic, just a nicer view with live buttons instead of reading a markdown
+file.
+
+```bash
+streamlit run eval_dashboard.py
+```
+
+Sidebar options: run a single backend or compare both; optionally also run
+the LLM-as-judge pass (compare mode only) and/or the governance/fairness
+check. Results include the scorecard, layer pass rates, judge verdicts,
+fairness results, adversarial cases, and a per-ticket table, with JSON/MD
+export buttons that include all of the above, not just the base scorecard.
+
+**Keep this in a separate environment from your main app if you can.**
+`streamlit` and `fastapi` both depend on `starlette`, and installing both
+into the same environment has, in testing, sometimes pulled an
+incompatible `starlette` version that breaks the FastAPI web demo (`Router
+.__init__() got an unexpected keyword argument 'on_startup'`). It doesn't
+always happen — pip's resolver sometimes picks a compatible version — but
+don't rely on it. Safest setup:
+```bash
+python3 -m venv .venv-dashboard
+source .venv-dashboard/bin/activate
+pip install -r requirements.txt
+streamlit run eval_dashboard.py
+```
+leaving your main `.venv` (used for `uvicorn`/`cli.py`) untouched.
 
 ## Project layout
 
 ```
 app/
-  config.py    # env-driven config (LLM_BACKEND, OPENROUTER_*, paths)
-  llm.py       # LLMClient interface: OpenRouterClient (real) + MockLLMClient (free baseline)
+  config.py    # env-driven config (LLM_BACKEND, OPENROUTER_*, judge model, paths)
+  llm.py       # OpenRouterClient (real) + MockLLMClient (free baseline) + judge_compare()
   tools.py     # search_kb, get_order_status, issue_refund + their schemas
   store.py     # TraceStore (per-ticket JSON traces) + ApprovalQueue (the gate's state)
   agent.py     # classify -> route -> tool-calling loop -> gate -> log
-  main.py      # FastAPI app: API + serves static/index.html
+  main.py      # FastAPI app: API + serves static/index.html, per-request backend override
 cli.py         # terminal runner (run / demo / approvals / approve / deny)
+eval_dashboard.py  # Streamlit frontend over eval/run_eval.py
 data/
   orders.json  # mock order DB (mutated only by an approved refund)
   kb.json      # mock knowledge base
 eval/
-  test_tickets.json  # 17 labeled tickets
-  run_eval.py         # scoring harness -> eval_report.{json,md}
+  test_tickets.json      # 17 labeled tickets (main scorecard)
+  fairness_tickets.json  # 12 tickets, 4 matched-name groups (governance check)
+  run_eval.py             # scoring harness + judge + fairness -> eval_report.{json,md}, fairness_report.{json,md}
 static/
   index.html   # the demo UI (vanilla HTML/CSS/JS, no build step)
 traces/        # one JSON file per ticket run (gitignored, generated)
