@@ -33,13 +33,16 @@
       }
     ],
     "amount_paid": 1899.0,
-    "status": "delivered",
+    "status": "refunded",
     "carrier": "Delhivery",
     "tracking_number": "DL77120984IN",
     "eta": "2026-07-08",
     "placed_on": "2026-07-02",
     "days_since_delivery": 6,
-    "refund_eligible": true
+    "refund_eligible": true,
+    "refund_amount": 1899.0,
+    "refund_reason": "Customer requested refund: i want a refund, this is unacceptable. order #4488.",
+    "refunded_at": "2026-07-15T18:11:00.776435+00:00"
   },
   "4502": {
     "order_id": "4502",
