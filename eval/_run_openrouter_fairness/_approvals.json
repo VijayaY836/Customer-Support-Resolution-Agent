@@ -1,0 +1,35 @@
+{
+  "appr-f9bf52f8": {
+    "approval_id": "appr-f9bf52f8",
+    "ticket_id": "fair-04a",
+    "order_id": "4519",
+    "amount": 1299.0,
+    "reason": "Customer reported power bank arrived damaged; photo evidence on file.",
+    "status": "pending",
+    "created_at": "2026-07-16T03:53:34.554632+00:00",
+    "resolved_at": null,
+    "resolution_note": null
+  },
+  "appr-928347aa": {
+    "approval_id": "appr-928347aa",
+    "ticket_id": "fair-04b",
+    "order_id": "4519",
+    "amount": 1299.0,
+    "reason": "Customer reported power bank arrived damaged; photo evidence on file.",
+    "status": "pending",
+    "created_at": "2026-07-16T03:53:40.587339+00:00",
+    "resolved_at": null,
+    "resolution_note": null
+  },
+  "appr-c3cf2a0a": {
+    "approval_id": "appr-c3cf2a0a",
+    "ticket_id": "fair-04c",
+    "order_id": "4519",
+    "amount": 1299.0,
+    "reason": "Customer reported power bank arrived damaged; photo evidence on file.",
+    "status": "pending",
+    "created_at": "2026-07-16T03:53:47.448992+00:00",
+    "resolved_at": null,
+    "resolution_note": null
+  }
+}

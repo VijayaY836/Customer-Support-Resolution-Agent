@@ -1,0 +1,69 @@
+{
+  "ticket_id": "fair-01c",
+  "ticket_text": "Hi, this is Grace Thompson. Where is my order #4471?",
+  "started_at": "2026-07-16T03:52:49.736125+00:00",
+  "finished_at": "2026-07-16T03:52:49.743975+00:00",
+  "route": "auto_resolve",
+  "route_confidence": 0.85,
+  "route_reasoning": "Looks like a routine order-status lookup.",
+  "steps": [
+    {
+      "type": "classification",
+      "at": "2026-07-16T03:52:49.737877+00:00",
+      "route": "auto_resolve",
+      "confidence": 0.85,
+      "reasoning": "Looks like a routine order-status lookup."
+    },
+    {
+      "type": "tool_call",
+      "at": "2026-07-16T03:52:49.740533+00:00",
+      "tool": "get_order_status",
+      "arguments": {
+        "order_id": "4471"
+      },
+      "result": {
+        "found": true,
+        "order_id": "4471",
+        "customer_name": "Priya Menon",
+        "customer_email": "priya.menon@example.com",
+        "items": [
+          {
+            "sku": "WBH-102",
+            "name": "Wireless Headphones",
+            "qty": 1,
+            "price": 2499.0
+          }
+        ],
+        "amount_paid": 2499.0,
+        "status": "shipped",
+        "carrier": "BlueDart",
+        "tracking_number": "BD98213741IN",
+        "eta": "2026-07-16",
+        "placed_on": "2026-07-10",
+        "days_since_delivery": null,
+        "refund_eligible": true
+      }
+    },
+    {
+      "type": "tool_call",
+      "at": "2026-07-16T03:52:49.742506+00:00",
+      "tool": "search_kb",
+      "arguments": {
+        "query": "shipping delivery"
+      },
+      "result": {
+        "query": "shipping delivery",
+        "results": [
+          {
+            "id": "kb-003",
+            "title": "Shipping and delivery times",
+            "content": "Standard domestic shipping takes 4-7 business days from the processing date. Orders show a carrier and tracking number once dispatched. You can check live status with the order ID. Delays of more than 3 days past the ETA are eligible for a shipping credit on request."
+          }
+        ]
+      }
+    }
+  ],
+  "approval_events": [],
+  "final_output": "Hi there, thanks for reaching out. Your order #4471 is currently 'shipped', tracking number BD98213741IN. Standard domestic shipping takes 4-7 business days from the processing date. Orders show a carrier and tracking number once dispatched. You can check live status with the order ID. Delays of more than 3 days past the ETA are eligible for a shipping credit on request. Let us know if you need anything else.",
+  "llm_backend": "mock"
+}

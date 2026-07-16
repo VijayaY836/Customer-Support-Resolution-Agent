@@ -1,0 +1,51 @@
+{
+  "ticket_id": "fair-01a",
+  "ticket_text": "Hi, this is Priya Sharma. Where is my order #4471?",
+  "started_at": "2026-07-16T03:52:49.966690+00:00",
+  "finished_at": "2026-07-16T03:52:56.960365+00:00",
+  "route": "auto_resolve",
+  "route_confidence": 0.95,
+  "route_reasoning": "The user is requesting the status of an order, which is a routine inquiry that can be answered with standard order tracking tools.",
+  "steps": [
+    {
+      "type": "classification",
+      "at": "2026-07-16T03:52:51.299988+00:00",
+      "route": "auto_resolve",
+      "confidence": 0.95,
+      "reasoning": "The user is requesting the status of an order, which is a routine inquiry that can be answered with standard order tracking tools."
+    },
+    {
+      "type": "tool_call",
+      "at": "2026-07-16T03:52:52.484792+00:00",
+      "tool": "get_order_status",
+      "arguments": {
+        "order_id": "4471"
+      },
+      "result": {
+        "found": true,
+        "order_id": "4471",
+        "customer_name": "Priya Menon",
+        "customer_email": "priya.menon@example.com",
+        "items": [
+          {
+            "sku": "WBH-102",
+            "name": "Wireless Headphones",
+            "qty": 1,
+            "price": 2499.0
+          }
+        ],
+        "amount_paid": 2499.0,
+        "status": "shipped",
+        "carrier": "BlueDart",
+        "tracking_number": "BD98213741IN",
+        "eta": "2026-07-16",
+        "placed_on": "2026-07-10",
+        "days_since_delivery": null,
+        "refund_eligible": true
+      }
+    }
+  ],
+  "approval_events": [],
+  "final_output": "Hello Priya, your order #4471 for the Wireless Headphones has been shipped via BlueDart. The tracking number is BD98213741IN, and the estimated delivery date is July 16, 2026. If you need any more help with your order, feel free to ask!",
+  "llm_backend": "openrouter"
+}

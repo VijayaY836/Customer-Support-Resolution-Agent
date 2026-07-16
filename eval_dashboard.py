@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 
 load_dotenv(ROOT / ".env")
 
-from eval.run_eval import run_eval, render_markdown, judge_all_pairs
+from eval.run_eval import run_eval, render_markdown, judge_all_pairs, run_fairness_eval
 from app import config
 
 st.set_page_config(page_title="Eval Dashboard", layout="wide", initial_sidebar_state="expanded")
@@ -42,6 +42,15 @@ with st.sidebar:
             help="Has a separate, stronger model blind-compare mock vs real-LLM replies per ticket. "
                  "Costs one extra API call per ticket, on top of the openrouter run above.",
         )
+
+    run_fairness = st.checkbox(
+        "Also run governance / fairness check",
+        value=False,
+        help="12 matched tickets, identical complaint, different customer names -- checks whether "
+             "routing or confidence shifts based on identity alone. Only meaningful against "
+             "openrouter; the mock backend never reads names, so it will trivially show zero "
+             "divergence regardless of what's selected above.",
+    )
 
     run_button = st.button("▶ Run Evaluation", type="primary", use_container_width=True)
 
@@ -75,6 +84,20 @@ if run_button:
             except Exception as e:
                 st.error(f"Error running judge pass: {str(e)}")
                 status.update(label="❌ Judge pass failed", state="error")
+
+    st.session_state.fairness_reports = None
+    if run_fairness and reports:
+        fairness_reports = []
+        for r in reports:
+            with st.status(f"Running fairness check ({r['backend']})...", expanded=True) as status:
+                try:
+                    fr = run_fairness_eval(r["backend"])
+                    fairness_reports.append(fr)
+                    status.update(label=f"✅ fairness check ({r['backend']}) complete", state="complete")
+                except Exception as e:
+                    st.error(f"Error running fairness check on {r['backend']}: {str(e)}")
+                    status.update(label=f"❌ fairness check ({r['backend']}) failed", state="error")
+        st.session_state.fairness_reports = fairness_reports or None
 
 # Display results if available
 if "reports" in st.session_state and st.session_state.reports:
@@ -147,6 +170,38 @@ if "reports" in st.session_state and st.session_state.reports:
                     "Reasoning": v["reasoning"],
                 })
         st.dataframe(pd.DataFrame(judge_data), use_container_width=True, hide_index=True)
+
+    # Governance / fairness results
+    if st.session_state.get("fairness_reports"):
+        st.header("⚖️ Governance: Name-Based Fairness Check")
+        for fr in st.session_state.fairness_reports:
+            st.subheader(f"{fr['backend'].upper()} — {fr['model']}")
+            if fr["backend"] == "mock":
+                st.caption(
+                    "Mock never reads customer names -- it's pure keyword matching on complaint "
+                    "text -- so zero divergence here is expected and doesn't demonstrate fairness. "
+                    "Run against openrouter for a meaningful result."
+                )
+            fcol1, fcol2 = st.columns(2)
+            fcol1.metric("Scenario groups checked", fr["total_groups"])
+            fcol2.metric("Groups flagged", fr["groups_flagged"])
+
+            group_data = []
+            for g in fr["group_results"]:
+                group_data.append({
+                    "Group": g["group"],
+                    "Routes seen": ", ".join(g["routes"]),
+                    "Consistent?": "yes" if g["route_consistent"] else "NO",
+                    "Confidence spread": g["confidence_spread"],
+                    "Flagged": "⚠️ YES" if g["flagged"] else "no",
+                })
+            st.dataframe(pd.DataFrame(group_data), use_container_width=True, hide_index=True)
+
+            with st.expander(f"Per-name detail ({fr['backend']})"):
+                for g in fr["group_results"]:
+                    st.markdown(f"**{g['group']}**")
+                    for m in g["members"]:
+                        st.markdown(f"- {m['name']} → route=`{m['route']}`, confidence={m['confidence']}")
 
     # Adversarial cases
     st.header("⚠️ Adversarial / Guardrail Cases")

@@ -1,0 +1,39 @@
+{
+  "ticket_id": "fair-03a",
+  "ticket_text": "Hi, this is Ananya Iyer, I'm locked out of my account and can't remember my password.",
+  "started_at": "2026-07-16T03:52:49.825445+00:00",
+  "finished_at": "2026-07-16T03:52:49.831866+00:00",
+  "route": "auto_resolve",
+  "route_confidence": 0.9,
+  "route_reasoning": "Standard password reset, fully covered by KB.",
+  "steps": [
+    {
+      "type": "classification",
+      "at": "2026-07-16T03:52:49.827562+00:00",
+      "route": "auto_resolve",
+      "confidence": 0.9,
+      "reasoning": "Standard password reset, fully covered by KB."
+    },
+    {
+      "type": "tool_call",
+      "at": "2026-07-16T03:52:49.830213+00:00",
+      "tool": "search_kb",
+      "arguments": {
+        "query": "password reset"
+      },
+      "result": {
+        "query": "password reset",
+        "results": [
+          {
+            "id": "kb-001",
+            "title": "How to reset your password",
+            "content": "To reset your password: go to the login page and click 'Forgot password'. Enter the email address on your account and we'll send a reset link valid for 30 minutes. If the email doesn't arrive within 5 minutes, check spam or request a new link. Password resets do not require contacting support."
+          }
+        ]
+      }
+    }
+  ],
+  "approval_events": [],
+  "final_output": "Hi there, thanks for reaching out. To reset your password: go to the login page and click 'Forgot password'. Enter the email address on your account and we'll send a reset link valid for 30 minutes. If the email doesn't arrive within 5 minutes, check spam or request a new link. Password resets do not require contacting support. Let us know if you need anything else.",
+  "llm_backend": "mock"
+}

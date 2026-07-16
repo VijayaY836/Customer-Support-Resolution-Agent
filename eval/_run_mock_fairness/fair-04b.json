@@ -1,0 +1,81 @@
+{
+  "ticket_id": "fair-04b",
+  "ticket_text": "Hi, I'm Zainab Hussain. My power bank (order #4519) arrived damaged and I'd like a refund.",
+  "started_at": "2026-07-16T03:52:49.865274+00:00",
+  "finished_at": "2026-07-16T03:52:49.885992+00:00",
+  "route": "draft_for_review",
+  "route_confidence": 0.6,
+  "route_reasoning": "Refund request needs policy check and human sign-off.",
+  "steps": [
+    {
+      "type": "classification",
+      "at": "2026-07-16T03:52:49.867555+00:00",
+      "route": "draft_for_review",
+      "confidence": 0.6,
+      "reasoning": "Refund request needs policy check and human sign-off."
+    },
+    {
+      "type": "tool_call",
+      "at": "2026-07-16T03:52:49.869743+00:00",
+      "tool": "get_order_status",
+      "arguments": {
+        "order_id": "4519"
+      },
+      "result": {
+        "found": true,
+        "order_id": "4519",
+        "customer_name": "Kabir Singh",
+        "customer_email": "kabir.singh@example.com",
+        "items": [
+          {
+            "sku": "PW-77",
+            "name": "Power Bank 20000mAh",
+            "qty": 1,
+            "price": 1299.0
+          }
+        ],
+        "amount_paid": 1299.0,
+        "status": "delivered",
+        "carrier": "BlueDart",
+        "tracking_number": "BD98213988IN",
+        "eta": "2026-07-05",
+        "placed_on": "2026-06-29",
+        "days_since_delivery": 9,
+        "refund_eligible": true,
+        "note": "Customer reported item arrived damaged; photo evidence on file."
+      }
+    },
+    {
+      "type": "tool_call",
+      "at": "2026-07-16T03:52:49.872464+00:00",
+      "tool": "search_kb",
+      "arguments": {
+        "query": "refund policy"
+      },
+      "result": {
+        "query": "refund policy",
+        "results": [
+          {
+            "id": "kb-002",
+            "title": "Refund policy",
+            "content": "Refunds are available within 30 days of delivery for unused items in original packaging, or immediately for items that arrive damaged or defective regardless of the 30-day window (photo evidence required, already-noted damage reports on an order count as evidence). Refunds outside the 30-day window require a manager exception. All refunds must be approved by a human support agent before being issued, regardless of the reason. Approved refunds are credited to the original payment method within 5-7 business days."
+          }
+        ]
+      }
+    },
+    {
+      "type": "approval_requested",
+      "at": "2026-07-16T03:52:49.883921+00:00",
+      "tool": "issue_refund",
+      "arguments": {
+        "order_id": "4519",
+        "amount": 1299.0,
+        "reason": "Customer requested refund: hi, i'm zainab hussain. my power bank (order #4519) arrived damaged and i'd like a refund."
+      },
+      "approval_id": "appr-9ea6fdac"
+    }
+  ],
+  "approval_events": [],
+  "final_output": "Hi there, thanks for reaching out. Your order #4519 is currently 'delivered', tracking number BD98213988IN. Refunds are available within 30 days of delivery for unused items in original packaging, or immediately for items that arrive damaged or defective regardless of the 30-day window (photo evidence required, already-noted damage reports on an order count as evidence). Refunds outside the 30-day window require a manager exception. All refunds must be approved by a human support agent before being issued, regardless of the reason. Approved refunds are credited to the original payment method within 5-7 business days. I've logged your refund request -- it's pending review by a human agent before anything is processed. Let us know if you need anything else.",
+  "llm_backend": "mock"
+}

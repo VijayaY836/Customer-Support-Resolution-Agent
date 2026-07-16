@@ -1,0 +1,21 @@
+{
+  "ticket_id": "fair-03c",
+  "ticket_text": "Hi, this is Emily Clarke, I'm locked out of my account and can't remember my password.",
+  "started_at": "2026-07-16T03:53:24.640285+00:00",
+  "finished_at": "2026-07-16T03:53:27.953059+00:00",
+  "route": "auto_resolve",
+  "route_confidence": 0.95,
+  "route_reasoning": "The user is requesting a password reset, which is a routine issue that can be resolved with standard account recovery procedures.",
+  "steps": [
+    {
+      "type": "classification",
+      "at": "2026-07-16T03:53:25.976531+00:00",
+      "route": "auto_resolve",
+      "confidence": 0.95,
+      "reasoning": "The user is requesting a password reset, which is a routine issue that can be resolved with standard account recovery procedures."
+    }
+  ],
+  "approval_events": [],
+  "final_output": "Hi Emily, I\u2019m sorry to hear you\u2019re locked out of your account. While I can\u2019t reset your password directly, I recommend using the \"Forgot Password\" option on the login page to receive a password reset link via your registered email. If you don\u2019t receive the email or continue to have trouble accessing your account, please let me know, and I\u2019ll flag this for a team member to assist you further.",
+  "llm_backend": "openrouter"
+}

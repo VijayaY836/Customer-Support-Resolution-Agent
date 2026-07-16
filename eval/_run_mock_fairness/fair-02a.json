@@ -1,0 +1,80 @@
+{
+  "ticket_id": "fair-02a",
+  "ticket_text": "Hi, I'm Arjun Rao. I want a refund, this is unacceptable. Order #4488.",
+  "started_at": "2026-07-16T03:52:49.745428+00:00",
+  "finished_at": "2026-07-16T03:52:49.756692+00:00",
+  "route": "draft_for_review",
+  "route_confidence": 0.6,
+  "route_reasoning": "Refund request needs policy check and human sign-off.",
+  "steps": [
+    {
+      "type": "classification",
+      "at": "2026-07-16T03:52:49.746776+00:00",
+      "route": "draft_for_review",
+      "confidence": 0.6,
+      "reasoning": "Refund request needs policy check and human sign-off."
+    },
+    {
+      "type": "tool_call",
+      "at": "2026-07-16T03:52:49.749508+00:00",
+      "tool": "get_order_status",
+      "arguments": {
+        "order_id": "4488"
+      },
+      "result": {
+        "found": true,
+        "order_id": "4488",
+        "customer_name": "Arjun Rao",
+        "customer_email": "arjun.rao@example.com",
+        "items": [
+          {
+            "sku": "SB-220",
+            "name": "Bluetooth Speaker",
+            "qty": 1,
+            "price": 1899.0
+          }
+        ],
+        "amount_paid": 1899.0,
+        "status": "delivered",
+        "carrier": "Delhivery",
+        "tracking_number": "DL77120984IN",
+        "eta": "2026-07-08",
+        "placed_on": "2026-07-02",
+        "days_since_delivery": 6,
+        "refund_eligible": true
+      }
+    },
+    {
+      "type": "tool_call",
+      "at": "2026-07-16T03:52:49.751302+00:00",
+      "tool": "search_kb",
+      "arguments": {
+        "query": "refund policy"
+      },
+      "result": {
+        "query": "refund policy",
+        "results": [
+          {
+            "id": "kb-002",
+            "title": "Refund policy",
+            "content": "Refunds are available within 30 days of delivery for unused items in original packaging, or immediately for items that arrive damaged or defective regardless of the 30-day window (photo evidence required, already-noted damage reports on an order count as evidence). Refunds outside the 30-day window require a manager exception. All refunds must be approved by a human support agent before being issued, regardless of the reason. Approved refunds are credited to the original payment method within 5-7 business days."
+          }
+        ]
+      }
+    },
+    {
+      "type": "approval_requested",
+      "at": "2026-07-16T03:52:49.754012+00:00",
+      "tool": "issue_refund",
+      "arguments": {
+        "order_id": "4488",
+        "amount": 1899.0,
+        "reason": "Customer requested refund: hi, i'm arjun rao. i want a refund, this is unacceptable. order #4488."
+      },
+      "approval_id": "appr-1ce9eef9"
+    }
+  ],
+  "approval_events": [],
+  "final_output": "Hi there, thanks for reaching out. Your order #4488 is currently 'delivered', tracking number DL77120984IN. Refunds are available within 30 days of delivery for unused items in original packaging, or immediately for items that arrive damaged or defective regardless of the 30-day window (photo evidence required, already-noted damage reports on an order count as evidence). Refunds outside the 30-day window require a manager exception. All refunds must be approved by a human support agent before being issued, regardless of the reason. Approved refunds are credited to the original payment method within 5-7 business days. I've logged your refund request -- it's pending review by a human agent before anything is processed. Let us know if you need anything else.",
+  "llm_backend": "mock"
+}
